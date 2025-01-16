@@ -1,4 +1,4 @@
-package derive_builder.test
+protected package derive_builder.test
 
 import derive_builder.macros.DeriveBuilder
 import std.unittest.*
