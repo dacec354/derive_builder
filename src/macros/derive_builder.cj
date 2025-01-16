@@ -13,7 +13,7 @@ func deriveBuilderImpl(input: Tokens): Tokens {
             case d: StructDecl => deriveBuilderStruct(d)
             case d: ClassDecl => deriveBuilderClass(d)
             case d: Decl =>
-                diagReport(DiagReportLevel.ERROR, input[0..1], "Failed to parse class or struct",
+                diagReport(DiagReportLevel.ERROR, d.keyword.toTokens(), "Failed to parse class or struct",
                     "Expect a class or struct, found ${d.keyword.value}")
                 throw ASTException("Failed to parse class or struct")
         }
@@ -49,8 +49,7 @@ func deriveBuilderBody(body: Body, classId: Token): Tokens {
     let primaryVars = ArrayList<VarDecl>()
     for (decl in body.decls) {
         match (decl) {
-            case v: VarDecl where v.modifiers.iterator().all {m => m.keyword.kind != STATIC} &&
-                !(v.keyword.kind == LET && getVarDefault(v).isSome()) => memberVars.add(guaranteeVarType(v))
+            case v: VarDecl where !(v.keyword.kind == LET && getVarDefault(v).isSome()) => memberVars.add(guaranteeVarType(v))
             case p: PrimaryCtorDecl => for (param in p.funcParams) {
                 let varDecl = VarDecl()
                 varDecl.modifiers = ArrayList([Modifier(Token(PRIVATE))])
@@ -66,22 +65,6 @@ func deriveBuilderBody(body: Body, classId: Token): Tokens {
     if (!memberVars.isEmpty() || primaryVars.isEmpty()) {
         body.decls.add(FuncDecl(genInit(memberVars, primaryVars)))
     }
-    // // 去除原类/结构体中的默认值
-    // let indexs = ArrayList<Int64>()
-    // for ((i, decl) in body.decls.iterator().enumerate()) {
-    //     match (decl) {
-    //         case v: VarDecl where v.modifiers.iterator().all {m => m.keyword.kind != STATIC} => indexs.add(i)
-    //         case _ => ()
-    //     }
-    // }
-    // for (i in indexs) {
-    //     match (body.decls[i]) {
-    //         case v: VarDecl where v.modifiers.iterator().all {m => m.keyword.kind != STATIC} =>
-    //             body.decls.remove(at: i)
-    //             body.decls.add(VarDecl(quote($(v.modifiers) $(v.keyword) $(v.identifier): $(v.declType))), at: i)
-    //         case _ => ()
-    //     }
-    // }
     memberVars
         .iterator()
         .concat(primaryVars.iterator())

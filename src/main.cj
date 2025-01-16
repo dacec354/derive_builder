@@ -13,6 +13,7 @@ protected class Hello {
     let is_admin: Bool
     let desc: ?String = "234"
     let op: ??Int64
+    static let s: Int64 = 1
 }
 
 main(): Unit {
