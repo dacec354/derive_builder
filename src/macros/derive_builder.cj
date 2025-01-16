@@ -147,6 +147,7 @@ func getVarDefault(varDecl: VarDecl): ?Expr {
 
 func guaranteeVarType(vardecl: VarDecl): VarDecl {
     try {
+        vardecl.declType
         vardecl
     } catch (_) {
         diagReport(DiagReportLevel.ERROR, vardecl.toTokens(), "Type declaration not found",
