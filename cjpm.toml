@@ -6,7 +6,7 @@
   description = "nothing here"
   link-option = ""
   name = "derive_builder"
-  output-type = "executable"
+  output-type = "static"
   override-compile-option = ""
   src-dir = ""
   target-dir = ""
