@@ -25,10 +25,10 @@ func deriveBuilderImpl(input: Tokens): Tokens {
 
 func deriveBuilderStruct(decl: StructDecl): Tokens {
     let builderId = Token(IDENTIFIER, decl.identifier.value + "Builder")
+    let builderModifiers = decl.modifiers
     let body = deriveBuilderBody(decl.body, decl.identifier)
     quote($(decl)
-    
-    struct $(builderId) {
+    $(builderModifiers) class $(builderId) {
     $(body)
 })
 }
@@ -38,7 +38,6 @@ func deriveBuilderClass(decl: ClassDecl): Tokens {
     let builderModifiers = decl.modifiers
     let body = deriveBuilderBody(decl.body, decl.identifier)
     quote($(decl)
-    
     $(builderModifiers) class $(builderId) {
     $(body)
 })
@@ -49,7 +48,8 @@ func deriveBuilderBody(body: Body, classId: Token): Tokens {
     let primaryVars = ArrayList<VarDecl>()
     for (decl in body.decls) {
         match (decl) {
-            case v: VarDecl where !(v.keyword.kind == LET && getVarDefault(v).isSome()) => memberVars.add(guaranteeVarType(v))
+            case v: VarDecl where v.modifiers.iterator().all {m => m.keyword.kind != STATIC} &&
+                !(v.keyword.kind == LET && getVarDefault(v).isSome()) => memberVars.add(guaranteeVarType(v))
             case p: PrimaryCtorDecl => for (param in p.funcParams) {
                 let varDecl = VarDecl()
                 varDecl.modifiers = ArrayList([Modifier(Token(PRIVATE))])
