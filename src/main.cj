@@ -2,16 +2,12 @@ package derive_builder
 
 import derive_builder.macros.DeriveBuilder
 
-// public class A {
-//     static let a: Int64
-// }
-
 @DeriveBuilder
 protected class Hello {
     let name: String
     let age: Int = 1
     let is_admin: Bool
-    let desc: ?String = "234"
+    var desc: ?String = "234"
     let op: ??Int64
     static let s: Int64 = 1
 }

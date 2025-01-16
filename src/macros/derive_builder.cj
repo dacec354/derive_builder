@@ -73,7 +73,7 @@ func deriveBuilderBody(body: Body, classId: Token): Tokens {
             let id = Token(IDENTIFIER, "_" + i.identifier.value)
             acc + Token(NL) + match (getVarDefault(i)) {
                 case None => quote(private var $(id): ?($(i.declType)) = None)
-                case Some(e) => quote(private var $(id): ?($(i.declType)) = $(e))
+                case Some(e) => quote(private var $(id): $(i.declType) = $(e))
             }
         } + Token(NL) + genBuilderInit() + Token(NL) + genBuilderFunctions(memberVars, primaryVars, classId) + Token(NL) +
         genBuild(memberVars, primaryVars, classId)
@@ -107,7 +107,7 @@ func genBuilderFunctions(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<
             acc + quote(
                 public func $(i.identifier)(value: $(i.declType)): $(builderId) {
                 this.$(id) = value
-                return this
+                this
             })
         }
 }
@@ -120,7 +120,10 @@ func genBuild(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<VarDecl>, c
             v =>
             let id = Token(IDENTIFIER, "_" + v.identifier.value)
             let errorMsg = "Field ${v.identifier.value} is not set"
-            quote(this.$(id) ?? throw IllegalStateException($(errorMsg)))
+            match (getVarDefault(v)) {
+                case None => quote(this.$(id) ?? throw IllegalStateException($(errorMsg)))
+                case Some(_) => quote(this.$(id))
+            }
         }
         .intersperse(quote(,
         ))
