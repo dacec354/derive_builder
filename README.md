@@ -9,6 +9,8 @@
 首先，定义一个类或结构体，并使用 `@DeriveBuilder` 宏注解。
 
 ```cj
+import derive_builder.DeriveBuilder
+
 @DeriveBuilder
 class Hello {
     let a: Int64
@@ -58,6 +60,8 @@ let instance = HelloBuilder()
 ## 宏展开示例
 代码：
 ```cj
+import derive_builder.DeriveBuilder
+
 @DeriveBuilder
 protected class Hello {
     let name: String
