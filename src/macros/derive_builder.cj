@@ -1,4 +1,4 @@
-macro package derive_builder.macros
+protected macro package derive_builder.macros
 
 import std.ast.*
 import std.collection.{ArrayList, collectArray, fold}
