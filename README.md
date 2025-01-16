@@ -119,6 +119,12 @@ protected class HelloBuilder {
 
 ```
 
+## 安装
+将以下内容添加到你的`cjpm.toml`中`[dependencies]`下
+```
+derive_builder = { git = "https://gitcode.com/OpenCangjieCommunity/derive_builder.git", branch = "0.58.3", output_type = "static" }
+```
+
 ## 贡献
 
 欢迎贡献代码、报告问题或提出改进建议。请遵循项目的代码风格和贡献指南。
