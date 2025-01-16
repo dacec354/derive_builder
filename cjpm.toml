@@ -1,0 +1,14 @@
+[dependencies]
+
+[package]
+  cjc-version = "0.58.3"
+  compile-option = ""
+  description = "nothing here"
+  link-option = ""
+  name = "derive_builder"
+  output-type = "executable"
+  override-compile-option = ""
+  src-dir = ""
+  target-dir = ""
+  version = "1.0.0"
+  package-configuration = {}
