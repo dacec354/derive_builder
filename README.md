@@ -46,11 +46,11 @@ let instance = HelloBuilder()
 ```
 
 ## 特性
-- @DeriveBuilder会自动为被修饰的类或结构体生成一个包括所有成员变量的构造函数，以下满足以下条件的成员变量除外
+- @DeriveBuilder会自动为被修饰的类或结构体生成一个包括所有成员变量的构造函数，满足以下条件的成员变量除外
     - 不可变带默认值的变量 `let a: XX = xx`
     - 静态变量 `static var a: XX = xx`
 - 生成的构造器类的命名规则为`<类名>Builder`，例如 `HelloBuilder`。
-- 生成的构造器类的访问修饰符和原类一致。`public class Hello` -> `public class HelloBuilder`
+- 生成的构造器类的访问修饰符和原类/结构体一致。`public class Hello` -> `public class HelloBuilder`
 - 使用`<变量名称>(<值>)`设置变量值。`XXBuilder().name("13").build()`
 - 未赋值的变量在调用`build`时会抛出 `IllegalStateException` 异常。
 - 带默认值的变量在构建时默认值会被使用。
