@@ -278,10 +278,8 @@ func diagReportError<T>(node: T, message: String, hint: String, errorMessage: St
 }
 
 func isNamedParam(param: FuncParam): Bool {
-    try {
-        param.not
-        false
-    } catch (_) {
-        true
+    match (param.not.kind) {
+        case ILLEGAL => false
+        case _ => true
     }
 }
