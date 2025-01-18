@@ -38,6 +38,11 @@ struct D {
     }
 }
 
+@DeriveBuilder
+class E {
+    E(let a: Int64, let b: String, let c!: Float64) {}
+}
+
 @Test
 class DeriveBuilderTests {
     @TestCase
@@ -88,5 +93,17 @@ class DeriveBuilderTests {
             .build()
         @Expect(d.a, 1)
         @Expect(d.b, "2")
+    }
+
+    @TestCase
+    func testNamedParamVarDecl(): Unit {
+        let e = EBuilder()
+            .a(1)
+            .b("2")
+            .c(3.0)
+            .build()
+        @Expect(e.a, 1)
+        @Expect(e.b, "2")
+        @Expect(e.c, 3.0)
     }
 }
