@@ -26,6 +26,18 @@ struct C {
     public C(let c: ?String, let d: ?String) {}
 }
 
+@DeriveBuilder[enable_init = false]
+struct D {
+    let a: Int64
+    let b: ?String
+    let c: Float64 = 1.0
+
+    public init(a: Int64, b: ?String) {
+        this.a = a
+        this.b = b
+    }
+}
+
 @Test
 class DeriveBuilderTests {
     @TestCase
@@ -66,5 +78,15 @@ class DeriveBuilderTests {
         @Expect(c.b, "1343")
         @Expect(c.c, "1")
         @Expect(c.d, "2")
+    }
+
+    @TestCase
+    func testNoInit(): Unit {
+        let d = DBuilder()
+            .a(1)
+            .b("2")
+            .build()
+        @Expect(d.a, 1)
+        @Expect(d.b, "2")
     }
 }
