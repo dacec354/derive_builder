@@ -47,10 +47,31 @@ let instance = HelloBuilder()
     .build()  // 抛出 IllegalStateException("Field b is not set")
 ```
 
+## 属性支持
+|属性名称|值|意义|默认值|
+|--|--|---|---|
+|enable_init|`true`/`false`|是否启用生成构造函数，禁用后Builder依然依赖这个构造函数|`true`|
+
+```cj
+@DeriveBuilder[enable_init = false]
+struct D {
+    let a: Int64
+    let b: ?String
+    let c: Float64 = 1.0
+
+    // 任然需要给出构造函数
+    public init(a: Int64, b: ?String) {
+        this.a = a
+        this.b = b
+    }
+}
+```
+
 ## 特性
 - @DeriveBuilder会自动为被修饰的类或结构体生成一个包括所有成员变量的构造函数，满足以下条件的成员变量除外
     - 不可变带默认值的变量 `let a: XX = xx`
     - 静态变量 `static var a: XX = xx`
+    - 更详细的规则请参考[文档](./doc/init_rule.md)
 - 生成的构造器类的命名规则为`<类名>Builder`，例如 `HelloBuilder`。
 - 生成的构造器类的访问修饰符和原类/结构体一致。`public class Hello` -> `public class HelloBuilder`
 - 使用`<变量名称>(<值>)`设置变量值。`XXBuilder().name("13").build()`
