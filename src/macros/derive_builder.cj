@@ -13,13 +13,18 @@ struct Config {
         for ((key, (expr, rightExpr)) in parseCommaSeparatedAttrs(attr)) {
             match (key) {
                 case "enable_init" => match (rightExpr) {
-                    case e: LitConstExpr where e.literal.kind == TokenKind.BOOL_LITERAL => 
-                        this.enable_init = if (e.literal.value == "false") {false} else {true}
-                    case _ => 
-                        diagReportError(rightExpr, 'Value can only be "true" or "false"', "Invalid attribute value")
+                    case e: LitConstExpr where e.literal.kind == TokenKind.BOOL_LITERAL => this.enable_init = if (e
+                        .literal
+                        .value == "false") {
+                        false
+                    } else {
+                        true
+                    }
+                    case _ => diagReportError(rightExpr, 'Value can only be "true" or "false"',
+                        "Invalid attribute value")
                 }
-                case _ =>
-                    diagReportError(expr, 'Unsupported attribute, do you mean "enable_init"?', "Unsupported attribute")
+                case _ => diagReportError(expr, 'Unsupported attribute, do you mean "enable_init"?',
+                    "Unsupported attribute")
             }
         }
     }
@@ -33,12 +38,12 @@ struct Config {
                 match (expr) { // cjlint-ignore !G.EXP.01
                     case a: AssignExpr where a.leftExpr.toTokens().size == 1 => match (table.add(
                         a.leftExpr.toTokens()[0].value, (a, a.rightExpr))) {
-                        case Some(_) =>
-                            diagReportError(attr[index..nextIndex], 'Attribute can only be defined once', "Duplicated attribute")
+                        case Some(_) => diagReportError(attr[index..nextIndex], 'Attribute can only be defined once',
+                            "Duplicated attribute")
                         case None => ()
                     }
-                    case e =>
-                        diagReportError(attr[index..nextIndex], 'Expected "attr = value", found \"${e.toTokens()}\"', "Invalid attribute")
+                    case e => diagReportError(attr[index..nextIndex],
+                        'Expected "attr = value", found \"${e.toTokens()}\"', "Invalid attribute")
                 }
                 if (nextIndex >= attr.size) {
                     break
@@ -74,9 +79,8 @@ func deriveBuilderImpl(input: Tokens, config!: Config = Config()): Tokens {
         match (parseDecl(input)) {
             case d: StructDecl => deriveBuilderStruct(d, config)
             case d: ClassDecl => deriveBuilderClass(d, config)
-            case d: Decl =>
-                diagReportError(d.keyword.toTokens(), "Failed to parse class or struct",
-                    "Expect a class or struct, found ${d.keyword.value}")
+            case d: Decl => diagReportError(d.keyword.toTokens(), "Failed to parse class or struct",
+                "Expect a class or struct, found ${d.keyword.value}")
         }
     } catch (e: ParseASTException) {
         diagReportError(input[0..1], "Failed to parse class or struct", "Expect a class or struct")
@@ -103,33 +107,44 @@ func deriveBuilderClass(decl: ClassDecl, config: Config): Tokens {
 })
 }
 
-func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens {
-    let memberVars = ArrayList<VarDecl>()
-    let primaryVars = ArrayList<VarDecl>()
+func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens { // cjlint-ignore G.FUN.01
+    var memberVarCount = 0
+    var primaryVarCount = -1 // -1代表不存在主构造函数
+    let unnamedVars = ArrayList<VarDecl>()
+    let namedVars = ArrayList<VarDecl>()
     for (decl in body.decls) {
         match (decl) {
             case v: VarDecl where v.modifiers.iterator().all {m => m.keyword.kind != STATIC} &&
-                !(v.keyword.kind == LET && getVarDefault(v).isSome()) => memberVars.add(guaranteeVarType(v))
-            case p: PrimaryCtorDecl => for (param in p.funcParams) {
-                let varDecl = VarDecl()
-                varDecl.modifiers = ArrayList([Modifier(Token(PRIVATE))])
-                varDecl.keyword = param.keyword
-                varDecl.identifier = param.identifier
-                varDecl.declType = param.paramType
-                primaryVars.add(varDecl)
-            }
+                !(v.keyword.kind == LET && getVarDefault(v).isSome()) =>
+                unnamedVars.add(guaranteeVarType(v))
+                memberVarCount++
+            case p: PrimaryCtorDecl =>
+                primaryVarCount = 0
+                for (param in p.funcParams) {
+                    let varDecl = VarDecl()
+                    varDecl.modifiers = ArrayList([Modifier(Token(PRIVATE))])
+                    varDecl.keyword = param.keyword
+                    varDecl.identifier = param.identifier
+                    varDecl.declType = param.paramType
+                    if (param |> isNamedParam) {
+                        namedVars.add(varDecl)
+                    } else {
+                        unnamedVars.add(varDecl)
+                    }
+                    primaryVarCount++
+                }
             case _ => ()
         }
     }
     // 给原类/结构体添加构造函数
     if (config.enable_init) {
-        if (!memberVars.isEmpty() || primaryVars.isEmpty()) {
-            body.decls.add(FuncDecl(genInit(memberVars, primaryVars)))
+        if (memberVarCount != 0 || primaryVarCount == -1) {
+            body.decls.add(FuncDecl(genInit(unnamedVars, namedVars)))
         }
     }
-    memberVars
+    unnamedVars
         .iterator()
-        .concat(primaryVars.iterator())
+        .concat(namedVars.iterator())
         .fold(Tokens()) {
             acc, i =>
             let id = Token(IDENTIFIER, "_" + i.identifier.value)
@@ -137,31 +152,47 @@ func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens {
                 case None => quote(private var $(id): ?($(i.declType)) = None)
                 case Some(e) => quote(private var $(id): $(i.declType) = $(e))
             }
-        } + Token(NL) + genBuilderInit() + Token(NL) + genBuilderFunctions(memberVars, primaryVars, classId) + Token(NL) +
-        genBuild(memberVars, primaryVars, classId)
+        } + Token(NL) + genBuilderInit() + Token(NL) + genBuilderFunctions(unnamedVars, namedVars, classId) + Token(NL) +
+        genBuild(unnamedVars, namedVars, classId)
 }
 
-func genInit(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<VarDecl>): Tokens {
-    let params = memberVars
+func genInit(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>): Tokens {
+    let unnamedParams = unnamedVars
         .iterator()
-        .concat(primaryVars.iterator())
         .map {v => quote($(v.identifier): $(v.declType))}
         .intersperse(quote(,))
         .fold(Tokens()) {acc, i => acc + i}
-    let assigns = memberVars
+    let namedParams = namedVars
         .iterator()
-        .concat(primaryVars.iterator())
+        .map {v => quote($(v.identifier)!: $(v.declType))}
+        .intersperse(quote(,))
+        .fold(Tokens()) {acc, i => acc + i}
+    let optComma = if (!namedVars.isEmpty() && !unnamedVars.isEmpty()) {
+        quote(,)
+    } else {
+        quote()
+    }
+    let optNewLine = if (namedVars.isEmpty() && unnamedVars.isEmpty()) {
+        quote()
+    } else {
+        quote(
+
+        )
+    }
+    let assigns = unnamedVars
+        .iterator()
+        .concat(namedVars.iterator())
         .map {v => quote(this.$(v.identifier) = $(v.identifier))}
         .intersperse(quote(
         ))
         .fold(Tokens()) {acc, i => acc + i}
-    quote(public init($(params)) {$(assigns)})
+    quote(public init($(unnamedParams)$(optComma)$(namedParams)) {$(optNewLine)$(assigns)$(optNewLine)})
 }
 
-func genBuilderFunctions(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<VarDecl>, classId: Token): Tokens {
-    memberVars
+func genBuilderFunctions(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>, classId: Token): Tokens {
+    unnamedVars
         .iterator()
-        .concat(primaryVars.iterator())
+        .concat(namedVars.iterator())
         .fold(Tokens()) {
             acc, i =>
             let id = Token(IDENTIFIER, "_" + i.identifier.value)
@@ -174,10 +205,9 @@ func genBuilderFunctions(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<
         }
 }
 
-func genBuild(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<VarDecl>, classId: Token): Tokens {
-    let params = memberVars
+func genBuild(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>, classId: Token): Tokens {
+    let unnamedParams = unnamedVars
         .iterator()
-        .concat(primaryVars.iterator())
         .map {
             v =>
             let id = Token(IDENTIFIER, "_" + v.identifier.value)
@@ -190,8 +220,28 @@ func genBuild(memberVars: ArrayList<VarDecl>, primaryVars: ArrayList<VarDecl>, c
         .intersperse(quote(,
         ))
         .fold(Tokens()) {acc, i => acc + i}
+    let namedParams = namedVars
+        .iterator()
+        .map {
+            v =>
+            let id = Token(IDENTIFIER, "_" + v.identifier.value)
+            let errorMsg = "Field ${v.identifier.value} is not set"
+            quote($(v.identifier): ) + match (getVarDefault(v)) {
+                case None => quote(this.$(id) ?? throw IllegalStateException($(errorMsg)))
+                case Some(_) => quote(this.$(id))
+            }
+        }
+        .intersperse(quote(,
+        ))
+        .fold(Tokens()) {acc, i => acc + i}
+    let optLineBreak = if (!unnamedVars.isEmpty() && !namedVars.isEmpty()) {
+        quote(,
+        )
+    } else {
+        quote()
+    }
     quote(public func build(): $(classId) {
-        $(classId)($(params))
+        $(classId)($(unnamedParams)$(optLineBreak)$(namedParams))
     })
 }
 
@@ -212,14 +262,12 @@ func guaranteeVarType(vardecl: VarDecl): VarDecl {
         vardecl.declType
         vardecl
     } catch (_) {
-        diagReport(DiagReportLevel.ERROR, vardecl.toTokens(), "Type declaration not found",
+        diagReportError(vardecl.toTokens(), "Type declaration not found",
             "Variable declaration must have type declaration")
-        throw ASTException("Type declaration not found")
     }
 }
 
-
-func diagReportError<T>(node: T, message: String, hint: String): Nothing where T <: ToTokens{
+func diagReportError<T>(node: T, message: String, hint: String): Nothing where T <: ToTokens {
     diagReport(DiagReportLevel.ERROR, node.toTokens(), message, hint)
     throw ASTException(hint)
 }
@@ -227,4 +275,13 @@ func diagReportError<T>(node: T, message: String, hint: String): Nothing where T
 func diagReportError<T>(node: T, message: String, hint: String, errorMessage: String): Nothing where T <: ToTokens {
     diagReport(DiagReportLevel.ERROR, node.toTokens(), message, hint)
     throw ASTException(errorMessage)
+}
+
+func isNamedParam(param: FuncParam): Bool {
+    try {
+        param.not
+        false
+    } catch (_) {
+        true
+    }
 }
