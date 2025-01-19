@@ -4,6 +4,7 @@ import std.ast.*
 import std.collection.{ArrayList, HashMap, collectArray, fold}
 
 struct Config {
+    let _attributes = ['enable_init']
     var enable_init = true
 
     init() {}
@@ -23,10 +24,56 @@ struct Config {
                     case _ => diagReportError(rightExpr, 'Value can only be "true" or "false"',
                         "Invalid attribute value")
                 }
-                case _ => diagReportError(expr, 'Unsupported attribute, do you mean "enable_init"?',
+                case _ => diagReportError(expr, this.getAdvice(key),
                     "Unsupported attribute")
             }
         }
+    }
+
+    func getAdvice(name: String): String {
+        let alternatives = ArrayList<String>()
+        for (a in this._attributes) {
+            if (this.levenshteinDistance(name, a) <= 3) {
+                alternatives.add(a)
+            }
+        }
+        match (alternatives.size) {
+            case 0 => 'Unsupported attribute'
+            case 1 => 'Unsupported attribute, do you mean "${alternatives[0]}"?'
+            case 2 => 'Unsupported attribute, do you mean "${alternatives[0]}" or "${alternatives[1]}"?'
+            case _ => 'Unsupported attribute, do you mean "${alternatives[0]}" or "${alternatives[1]}" or "${alternatives[2]}"?'
+        }
+    }
+
+    func levenshteinDistance(str1: String, str2: String): Int64 {
+        let size1 = str1.runes().count()
+        let size2 = str2.runes().count()
+        let dp = Array(size1 + 1) {
+            _ => Array(size2 + 1, repeat: 0)
+        }
+        for (i in 0..size1) {
+            dp[i][size2] = size1 - i
+        }
+        for (j in 0..size2) {
+            dp[size1][j] = size2 - j
+        }
+        for (i in size1 - 1..=0 : -1) {
+            for (j in size2 - 1..=0: -1) {
+                let r1 = str1.runes().at(i)
+                let r2 = str2.runes().at(j)
+                match ((r1, r2)) {
+                    case (Some(v), Some(m)) where v == m => dp[i][j] = dp[i + 1][j + 1]
+                    case (Some(v), Some(m)) => 
+                        dp[i][j] = 1 + min(
+                            dp[i + 1][j],
+                            dp[i][j + 1],
+                            dp[i + 1][j + 1]
+                        )
+                    case _ => ()
+                }
+            }
+        }
+        dp[0][0]
     }
 
     static func parseCommaSeparatedAttrs(attr: Tokens): HashMap<String, (AssignExpr, Expr)> {
