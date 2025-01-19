@@ -9,7 +9,6 @@ struct Config {
 
     init() {}
 
-    // TODO: 用编辑距离提示用户可能的选项，无选项时直接报错
     init(attr: Tokens) {
         for ((key, (expr, rightExpr)) in parseCommaSeparatedAttrs(attr)) {
             match (key) {
