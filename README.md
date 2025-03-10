@@ -145,9 +145,9 @@ protected class HelloBuilder {
 ```
 
 ## 安装
-将以下内容添加到你的`cjpm.toml`中`[dependencies]`下
+将以下内容添加到你的`cjpm.toml`中`[dependencies]`下，将branch替换为你的cjc版本号，`main`默认为最新版本
 ```
-derive_builder = { git = "https://gitcode.com/OpenCangjieCommunity/derive_builder.git", branch = "0.58.3", output_type = "static" }
+derive_builder = { git = "https://gitcode.com/OpenCangjieCommunity/derive_builder.git", branch = "0.59.3", output_type = "static" }
 ```
 
 ## 贡献
