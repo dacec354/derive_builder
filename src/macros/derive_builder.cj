@@ -4,16 +4,16 @@ import std.ast.*
 import std.collection.{ArrayList, HashMap}
 
 struct Config {
-    let _attributes = ['enable_init']
-    var enable_init = true
+    let _attributes = ['enableInit']
+    var enableInit = true
 
     init() {}
 
     init(attr: Tokens) {
         for ((key, (expr, rightExpr)) in parseCommaSeparatedAttrs(attr)) {
             match (key) {
-                case "enable_init" => match (rightExpr) {
-                    case e: LitConstExpr where e.literal.kind == TokenKind.BOOL_LITERAL => this.enable_init = if (e
+                case "enableInit" => match (rightExpr) {
+                    case e: LitConstExpr where e.literal.kind == TokenKind.BOOL_LITERAL => this.enableInit = if (e
                         .literal
                         .value == "false") {
                         false
@@ -178,7 +178,7 @@ func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens { // 
         }
     }
     // 给原类/结构体添加构造函数
-    if (config.enable_init) {
+    if (config.enableInit) {
         if (memberVarCount != 0 || primaryVarCount == -1) {
             body.decls.add(FuncDecl(genInit(varDecls)))
         }
