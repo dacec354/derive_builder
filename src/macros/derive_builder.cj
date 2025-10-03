@@ -252,7 +252,6 @@ func genBuild(varDecls: ArrayList<VarDecl>, classId: Token): Tokens {
         quote()
     } else {
         quote(
-
         )
     }
     quote(public func build(): $(classId) {
