@@ -2,6 +2,8 @@
 
 `Derive Builder` 是一个用于自动生成构建器模式的宏库。它允许开发者通过宏自动生成构建器类，从而简化对象的创建过程。构建器模式特别适用于需要创建具有多个可选参数的复杂对象的场景。
 
+> **注意**: 版本 2.0.0 引入了破坏性变更，生成的构造函数现在使用全命名参数格式。请确保更新您的代码以使用命名参数调用构造函数。
+
 ## 使用方法
 
 ### 1. 定义类或结构体
@@ -48,6 +50,7 @@ let instance = HelloBuilder()
 ```
 
 ## 属性支持
+
 |属性名称|值|意义|默认值|
 |--|--|---|---|
 |enable_init|`true`/`false`|是否启用生成构造函数，禁用后Builder依然依赖这个构造函数|`true`|
@@ -68,10 +71,11 @@ struct D {
 ```
 
 ## 特性
+
 - @DeriveBuilder会自动为被修饰的类或结构体生成一个包括所有成员变量的构造函数，满足以下条件的成员变量除外
-    - 不可变带默认值的变量 `let a: XX = xx`
-    - 静态变量 `static var a: XX = xx`
-    - 更详细的规则请参考[文档](./doc/init_rule.md)
+  - 不可变带默认值的变量 `let a: XX = xx`
+  - 静态变量 `static var a: XX = xx`
+  - 更详细的规则请参考[文档](./doc/init_rule.md)
 - 生成的构造器类的命名规则为`<类名>Builder`，例如 `HelloBuilder`。
 - 生成的构造器类的访问修饰符和原类/结构体一致。`public class Hello` -> `public class HelloBuilder`
 - 使用`<变量名称>(<值>)`设置变量值。`XXBuilder().name("13").build()`
@@ -79,7 +83,9 @@ struct D {
 - 带默认值的变量在构建时默认值会被使用。
 
 ## 宏展开示例
+
 代码：
+
 ```cj
 import derive_builder.DeriveBuilder
 
@@ -93,7 +99,9 @@ protected class Hello {
     static let s: Int64 = 1
 }
 ```
+
 宏展开：
+
 ```cj
 protected class Hello {
     let name: String
@@ -102,7 +110,7 @@ protected class Hello {
     var desc:?String = "234"
     let op:??Int64
     static let s: Int64 = 1
-    public init(name: String, is_admin: Bool, desc:?String, op:??Int64) {
+    public init(name!: String, is_admin!: Bool, desc!:?String, op!:??Int64) {
         this.name = name
         this.is_admin = is_admin
         this.desc = desc
@@ -135,19 +143,23 @@ protected class HelloBuilder {
         this
     }
     public func build(): Hello {
-        Hello(this._name??throw IllegalStateException("Field name is not set"),
-        this._is_admin??throw IllegalStateException("Field is_admin is not set"),
-        this._desc,
-        this._op??throw IllegalStateException("Field op is not set"))
+        Hello(
+            name: this._name??throw IllegalStateException("Field name is not set"),
+            is_admin: this._is_admin??throw IllegalStateException("Field is_admin is not set"),
+            desc: this._desc,
+            op: this._op??throw IllegalStateException("Field op is not set")
+        )
     }
 }
 
 ```
 
 ## 安装
+
 将以下内容添加到你的`cjpm.toml`中`[dependencies]`下，将branch替换为你的cjc版本号，`main`默认为最新版本
+
 ```
-derive_builder = { git = "https://gitcode.com/OpenCangjieCommunity/derive_builder.git", branch = "0.59.3", output_type = "static" }
+derive_builder = { git = "https://gitcode.com/OpenCangjieCommunity/derive_builder.git", branch = "main", output_type = "static" }
 ```
 
 ## 贡献
