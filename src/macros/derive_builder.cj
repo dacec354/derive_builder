@@ -1,7 +1,7 @@
 protected macro package derive_builder.macros
 
 import std.ast.*
-import std.collection.{ArrayList, HashMap, collectArray, fold}
+import std.collection.{ArrayList, HashMap}
 
 struct Config {
     let _attributes = ['enable_init']
@@ -156,13 +156,12 @@ func deriveBuilderClass(decl: ClassDecl, config: Config): Tokens {
 func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens { // cjlint-ignore G.FUN.01
     var memberVarCount = 0
     var primaryVarCount = -1 // -1代表不存在主构造函数
-    let unnamedVars = ArrayList<VarDecl>()
-    let namedVars = ArrayList<VarDecl>()
+    let varDecls = ArrayList<VarDecl>()
     for (decl in body.decls) {
         match (decl) {
             case v: VarDecl where v.modifiers.iterator().all {m => m.keyword.kind != STATIC} &&
                 !(v.keyword.kind == LET && getVarDefault(v).isSome()) =>
-                unnamedVars.add(guaranteeVarType(v))
+                varDecls.add(guaranteeVarType(v))
                 memberVarCount++
             case p: PrimaryCtorDecl =>
                 primaryVarCount = 0
@@ -172,11 +171,7 @@ func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens { // 
                     varDecl.keyword = param.keyword
                     varDecl.identifier = param.identifier
                     varDecl.declType = param.paramType
-                    if (param |> isNamedParam) {
-                        namedVars.add(varDecl)
-                    } else {
-                        unnamedVars.add(varDecl)
-                    }
+                    varDecls.add(varDecl)
                     primaryVarCount++
                 }
             case _ => ()
@@ -185,12 +180,11 @@ func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens { // 
     // 给原类/结构体添加构造函数
     if (config.enable_init) {
         if (memberVarCount != 0 || primaryVarCount == -1) {
-            body.decls.add(FuncDecl(genInit(unnamedVars, namedVars)))
+            body.decls.add(FuncDecl(genInit(varDecls)))
         }
     }
-    unnamedVars
+    varDecls
         .iterator()
-        .concat(namedVars.iterator())
         .fold(Tokens()) {
             acc, i =>
             let id = Token(IDENTIFIER, "_" + i.identifier.value)
@@ -198,47 +192,35 @@ func deriveBuilderBody(body: Body, classId: Token, config: Config): Tokens { // 
                 case None => quote(private var $(id): ?($(i.declType)) = None)
                 case Some(e) => quote(private var $(id): $(i.declType) = $(e))
             }
-        } + Token(NL) + genBuilderInit() + Token(NL) + genBuilderFunctions(unnamedVars, namedVars, classId) + Token(NL) +
-        genBuild(unnamedVars, namedVars, classId)
+        } + Token(NL) + genBuilderInit() + Token(NL) + genBuilderFunctions(varDecls, classId) + Token(NL) +
+        genBuild(varDecls, classId)
 }
 
-func genInit(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>): Tokens {
-    let unnamedParams = unnamedVars
-        .iterator()
-        .map {v => quote($(v.identifier): $(v.declType))}
-        .intersperse(quote(,))
-        .fold(Tokens()) {acc, i => acc + i}
-    let namedParams = namedVars
+func genInit(varDecls: ArrayList<VarDecl>): Tokens {
+    let params = varDecls
         .iterator()
         .map {v => quote($(v.identifier)!: $(v.declType))}
         .intersperse(quote(,))
         .fold(Tokens()) {acc, i => acc + i}
-    let optComma = if (!namedVars.isEmpty() && !unnamedVars.isEmpty()) {
-        quote(,)
-    } else {
-        quote()
-    }
-    let optNewLine = if (namedVars.isEmpty() && unnamedVars.isEmpty()) {
+    let optNewLine = if (varDecls.isEmpty()) {
         quote()
     } else {
         quote(
 
         )
     }
-    let assigns = unnamedVars
+    let assigns = varDecls
         .iterator()
-        .concat(namedVars.iterator())
         .map {v => quote(this.$(v.identifier) = $(v.identifier))}
         .intersperse(quote(
         ))
         .fold(Tokens()) {acc, i => acc + i}
-    quote(public init($(unnamedParams)$(optComma)$(namedParams)) {$(optNewLine)$(assigns)$(optNewLine)})
+    quote(public init($(params)) {$(optNewLine)$(assigns)$(optNewLine)})
 }
 
-func genBuilderFunctions(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>, classId: Token): Tokens {
-    unnamedVars
+func genBuilderFunctions(varDecls: ArrayList<VarDecl>, classId: Token): Tokens {
+    varDecls
         .iterator()
-        .concat(namedVars.iterator())
         .fold(Tokens()) {
             acc, i =>
             let id = Token(IDENTIFIER, "_" + i.identifier.value)
@@ -251,22 +233,8 @@ func genBuilderFunctions(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<V
         }
 }
 
-func genBuild(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>, classId: Token): Tokens {
-    let unnamedParams = unnamedVars
-        .iterator()
-        .map {
-            v =>
-            let id = Token(IDENTIFIER, "_" + v.identifier.value)
-            let errorMsg = "Field ${v.identifier.value} is not set"
-            match (getVarDefault(v)) {
-                case None => quote(this.$(id) ?? throw IllegalStateException($(errorMsg)))
-                case Some(_) => quote(this.$(id))
-            }
-        }
-        .intersperse(quote(,
-        ))
-        .fold(Tokens()) {acc, i => acc + i}
-    let namedParams = namedVars
+func genBuild(varDecls: ArrayList<VarDecl>, classId: Token): Tokens {
+    let params = varDecls
         .iterator()
         .map {
             v =>
@@ -280,14 +248,15 @@ func genBuild(unnamedVars: ArrayList<VarDecl>, namedVars: ArrayList<VarDecl>, cl
         .intersperse(quote(,
         ))
         .fold(Tokens()) {acc, i => acc + i}
-    let optLineBreak = if (!unnamedVars.isEmpty() && !namedVars.isEmpty()) {
-        quote(,
-        )
-    } else {
+    let optNewLine = if (varDecls.isEmpty()) {
         quote()
+    } else {
+        quote(
+
+        )
     }
     quote(public func build(): $(classId) {
-        $(classId)($(unnamedParams)$(optLineBreak)$(namedParams))
+        $(classId)($(optNewLine)$(params)$(optNewLine))
     })
 }
 
@@ -321,11 +290,4 @@ func diagReportError<T>(node: T, message: String, hint: String): Nothing where T
 func diagReportError<T>(node: T, message: String, hint: String, errorMessage: String): Nothing where T <: ToTokens {
     diagReport(DiagReportLevel.ERROR, node.toTokens(), message, hint)
     throw ASTException(errorMessage)
-}
-
-func isNamedParam(param: FuncParam): Bool {
-    match (param.not.kind) {
-        case ILLEGAL => false
-        case _ => true
-    }
 }
