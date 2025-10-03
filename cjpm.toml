@@ -1,7 +1,7 @@
 [dependencies]
 
 [package]
-  cjc-version = "0.59.6"
+  cjc-version = "1.0.1"
   compile-option = ""
   description = "nothing here"
   link-option = ""
@@ -10,5 +10,5 @@
   override-compile-option = ""
   src-dir = ""
   target-dir = ""
-  version = "1.0.0"
+  version = "2.0.0"
   package-configuration = {}
